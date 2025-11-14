@@ -1,0 +1,228 @@
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%% Copyright 2015-2021 Finnish Geospatial Research Institute FGI, National
+%% Land Survey of Finland. This file is part of FGI-GSRx software-defined
+%% receiver. FGI-GSRx is a free software: you can redistribute it and/or
+%% modify it under the terms of the GNU General Public License as published
+%% by the Free Software Foundation, either version 3 of the License, or any
+%% later version. FGI-GSRx software receiver is distributed in the hope
+%% that it will be useful, but WITHOUT ANY WARRANTY, without even the
+%% implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
+%% See the GNU General Public License for more details. You should have
+%% received a copy of the GNU General Public License along with FGI-GSRx
+%% software-defined receiver. If not, please visit the following website
+%% for further information: https://www.gnu.org/licenses/
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%
+%
+% GPS L5 & Galileo E5a 配置文件：UTD数据集（修正版）
+% 基于网络搜索验证的推荐参数
+% 参考文献：
+%   - IS-GPS-705 (GPS L5)
+%   - Galileo OS SIS ICD (E5a)
+%   - GNSS-SDR开源实现
+%   - 学术文献推荐值
+%
+% 修正内容：
+%   1. Galileo E5a带宽从10MHz修正为20MHz
+%   2. FLL环路带宽从80/40Hz修正为10/4Hz
+%   3. PLL环路带宽调整为20/6Hz
+%   4. 相关器间距规范化为标准配置
+%   5. 捕获参数优化
+%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+% System parameters
+sys,enabledSignals,[{['gpsl5']} {['gale5a']}], % List of enabled signals
+sys,msToProcess,0,       % Number of ms to process in total from data file. If 0 the maximum number of ms will be processed
+sys,msToSkip,0e3,             % Number of ms to skip from beginning of file
+
+% Input/Output file names
+sys,loadDataFile,false,     % Defines if data file is to be loaded
+sys,dataFileIn,'D:\skill\beidou\芬兰L1_E1数据集\芬兰L5_E5数据集\test_trackData_L5_E5a_UTD_DFMC.mat',          % Datafile to load of enabled
+
+sys,saveDataFile,true,     % Defines if data should be stored to file
+sys,dataFileOut,'D:\skill\beidou\芬兰L1_E1数据集\芬兰L5_E5数据集\test_trackData_L5_E5a_UTD_DFMC.mat',  % Data file for storing output
+sys,loadIONMetaDataReading,false,
+sys,metaDataFileIn,''
+
+% Plotting parameters
+sys,plotSpectra,true,              % If set to true plot spectrum and histogram results
+sys,plotAcquisition,true,          % If set to true plot acquisition results
+sys,plotTracking,true,             % If set to true plot tracking results
+sys,showTrackingOutput,true,        % If set to true show the tracking output
+
+%Tracking option: parallel vs sequential
+sys,parallelChannelTracking,false, %if it is true, it will look for the saved track Data files, it will be enough to offer any single single channel's track data file, the receiver will automatically combine the necessary trackdata files into one combined big file for navigation processing
+sys,currentWorkingDirectoryForFGIGSRx,'D:\skill\beidou\FGI-GSRx-2.0.2\',
+sys,trackDataFilePath,'D:\skill\beidou\output\parallel\', %This is for parallel tracking
+sys,batchFileNameToRunParallelTracking,'runGNSSSingleSatelliteTracking.bat', %FGI-GSRx creates this batch file to be processed later in windows command prompt
+sys,matlabpath,'D:\software\matlab\bin\matlab'  % 你的MATLAB路径
+
+% Multi correlator tracking parameters
+sys,enableMultiCorrelatorTracking,true, 	% Disable or enable multi correlator tracking
+sys,multiCorrelatorTrackingChannel,[1:12],      % Channel to be used for multi correlator tracking
+sys,multiCorrelatorTrackingRate,20,        	% Update rate in epochs for multi correlator tracking
+sys,corrFingers,[-2:0.25:2],                    % Correlator finger positions [chips]
+sys,noiseFingerIndex,1,                  	% Index of finger for measuring noise level when multi correlator tracking is enabled
+sys,earlyFingerIndex,8,                  	% Index of early finger when multi correlator tracking is enabled
+sys,promptFingerIndex,9,                 	% Index of prompt finger when multi correlator tracking is enabled
+sys,lateFingerIndex,10,                  	% Index of late finger when multi correlator tracking is enabled
+
+% Navigation parameters
+nav,navSolPeriod,100,           % Output period in ms for navigation solution
+nav,elevationMask,5,            % Elevation mask in degrees [0 - 90]. Satellites below this elevation will be excluded from navigation
+nav,snrMask,30,            		% SNR mask in dB-Hz [usually in the range between 30-35 dB-Hz]. Satellites below the SNR mask will be excluded from navigation
+nav,gpsLeapSecond,18,           % GPS-UTC leap seconds
+
+% True/reference user position, if available
+nav,trueLat,60.182260,
+nav,trueLong,24.828537,
+nav,trueHeight,47.248,
+
+
+% =====================================================================
+% GPS L5 Settings (修正版)
+% =====================================================================
+% GPS L5 载波频率: 1176.45 MHz
+% 调制方式: BPSK(10) - 数据通道 (L5I) 和导航通道 (L5Q)
+% 码速率: 10.23 Mcps (10倍于 L1 C/A)
+% 码长度: 10230 chips (1 ms)
+%
+% 参数来源：
+%   - GNSS-SDR开源项目推荐值
+%   - 学术文献验证
+%   - GPS L5信号比L1强1.5dB
+% =====================================================================
+
+% Input RF file
+gpsl5,rfFileName,'D:\skill\beidou\芬兰L5_E5数据集\UTD_L5_E5a.dat',            % Name of RF data file used for GPS L5 signal
+
+% Radio front end configurations
+gpsl5,centerFrequency,1176.45e6, % Radio center frequency [Hz] - GPS L5 标准频率
+gpsl5,samplingFreq,26e6, % Sampling frequency [Hz]
+gpsl5,bandWidth,20e6, % Bandwidth of the front end [Hz] - 修正：L5信号带宽约20-24MHz
+gpsl5,sampleSize,16, % Number of bits for one sample. For complex data this is the size for I+Q.
+gpsl5,complexData,true, % Complex or real data - L5 通常使用复数采样
+gpsl5,iqSwap,false, % Is the data IQ-swapped (QI) or not (IQ)?
+gpsl5,clockOffset,0,  % Clock offset for file if known [Hz]. This is an assistance parameter.
+
+% Acquisition parameters
+% 参考文献：标准信号使用1ms相干积分+15次非相干积分
+gpsl5,acqSatelliteList,[1:32],       % Specify what GPS satellites to search for [PRN numbers]
+gpsl5,nonCohIntNumber,15,           % Number of non-coherent integration rounds - 文献推荐15次，损失约-1.5dB
+gpsl5,cohIntNumber,1,              % Coherent integration time [ms] - 标准信号使用1ms（避免数据位跳变）
+gpsl5,acqThreshold,17,             % Threshold for the signal presence (SNR in dB) - 文献推荐17dB
+gpsl5,maxSearchFreq,6000,          % Maximum search frequency in one direction [Hz]
+
+% Tracking parameters
+% 参考：GNSS-SDR推荐值和MATLAB示例
+gpsl5,fllNoiseBandwidthWide,10, 	% FLL noise BW wide[Hz] - 修正：从80降至10Hz
+gpsl5,fllNoiseBandwidthNarrow,4,   % FLL noise BW narrow [Hz] - 修正：从40降至4Hz（文献推荐值）
+gpsl5,fllNoiseBandwidthVeryNarrow,2,   % FLL noise BW very narrow [Hz]
+gpsl5,fllDampingRatio,1.5,         % FLL damping ratio
+gpsl5,fllLoopGain,0.7,             % FLL loop gain
+gpsl5,pllNoiseBandwidthWide,20,        % PLL noise BW [Hz] - 修正：从15增至20Hz（GNSS-SDR推荐）
+gpsl5,pllNoiseBandwidthNarrow,6,        % PLL noise BW [Hz] - 修正：从10降至6Hz（GNSS-SDR推荐）
+gpsl5,pllNoiseBandwidthVeryNarrow,3,        % PLL noise BW [Hz]
+gpsl5,pllDampingRatio,0.7,          % PLL damping ratio
+gpsl5,pllLoopGain,0.2,              % PLL loop gain
+gpsl5,dllDampingRatio,0.7,          % DLL damping ratio
+gpsl5,dllNoiseBandwidth,1.0,          % DLL noise BW [Hz] - 1Hz为推荐值
+gpsl5,M,20,                         % Number of blocks to use for computing wide band power
+gpsl5,K,50,                         % Averaging over M number of blocks
+gpsl5,Nc,0.001,                     % integration time in seconds for DLL
+gpsl5,corrFingers,[-0.5 0 0.5],    % Correlator finger positions [chips] - 修正：规范化为标准Early-Prompt-Late配置（0.5 chips间距）
+gpsl5,earlyFingerIndex,1,               % Index of early finger
+gpsl5,promptFingerIndex,2,              % Index of prompt finger
+gpsl5,lateFingerIndex,3,                % Index of late finger
+gpsl5,noiseFingerIndex,1,               % Index of fingers for measuring noise level (可以用单独的噪声相关器)
+gpsl5,CN0Coeff,1,
+gpsl5,pllWideBandLockIndicatorThreshold,0.5,               % PLL lock indicator threshold for DLL unlocked => locked
+gpsl5,pllNarrowBandLockIndicatorThreshold,0.8,               % PLL lock indicator threshold for DLL unlocked => locked
+gpsl5,runningAvgWindowForLockDetectorInMs, 20
+gpsl5,fllWideBandLockIndicatorThreshold,0.5,               % FLL wide band lock indicator threshold for DLL unlocked => locked
+gpsl5,fllNarrowBandLockIndicatorThreshold,0.7,               % FLL narrow band lock detector threshold for DLL unlocked => locked
+
+% Signal specific observation parameters
+gpsl5,enableIonoCorrections,true,       % Use iono corrections or not
+gpsl5,enableTropoCorrections,true,      % Use tropo corrections or not
+gpsl5,ionomodel,'default',              % Iono model to use (default,gpsl1,gale1b,beib1,glol1, ionex)
+gpsl5,ionexFile,''                      % Filename for ionex file if ionomodel is = ionex
+
+
+% =====================================================================
+% Galileo E5a Settings (修正版)
+% =====================================================================
+% Galileo E5a 载波频率: 1176.45 MHz (与 GPS L5 相同)
+% 调制方式: AltBOC(15,10) 的 E5a 分量（单边带处理时为BPSK(10)）
+% 码速率: 10.23 Mcps
+% 码长度: 10230 chips (1 ms)
+%
+% 重要修正：
+%   1. 带宽从10MHz修正为20MHz（单边带E5a标准带宽20.46MHz）
+%   2. 如果FGI-GSRx不支持全AltBOC处理，将按单边带BPSK(10)处理
+%   3. 相关器间距调整（AltBOC允许最大0.33 chips）
+% =====================================================================
+
+% Input RF file
+gale5a,rfFileName,'D:\skill\beidou\芬兰L5_E5数据集\UTD_L5_E5a.dat',            % Name of RF data file used for Galileo E5a signal
+
+% Radio front end configurations
+gale5a,centerFrequency,1176.45e6, % Radio center frequency [Hz] - Galileo E5a 标准频率
+gale5a,samplingFreq,26e6, % Sampling frequency [Hz]
+gale5a,bandWidth,20e6, % Bandwidth [Hz] - 修正：从10MHz增至20MHz（单边带E5a标准带宽20.46MHz）
+gale5a,sampleSize,16, % Number of bits for one sample. For complex data this is the size for I+Q.
+gale5a,complexData,true, % Complex or real data
+gale5a,iqSwap,false, % Is the data IQ-swapped (QI) or not (IQ)?
+gale5a,clockOffset,0,  % Clock offset for file if known [Hz]. This is an assistance parameter.
+
+%Signal Modulation
+% 注意：如果FGI-GSRx不支持全AltBOC处理，实际会按BPSK(10)处理E5a单边带
+gale5a,modType,'BPSK', 			% 修正：如果软件不支持AltBOC，使用BPSK(10)单边带处理
+
+% Acquisition parameters
+gale5a,acqSatelliteList,[1:36],       % Specify what Galileo satellites to search for [PRN numbers]
+gale5a,nonCohIntNumber,15,           % Number of non-coherent integration rounds - 与GPS L5一致
+gale5a,cohIntNumber,1,              % Coherent integration time [ms] - 标准信号1ms
+gale5a,acqThreshold,17,             % Threshold for the signal presence (SNR in dB)
+gale5a,maxSearchFreq,6000,          % Maximum search frequency in one direction
+
+% Tracking parameters
+% 参考GPS L5参数，E5a信号质量类似
+gale5a,fllNoiseBandwidthWide,10, 	% FLL noise BW wide[Hz] - 修正：从70降至10Hz
+gale5a,fllNoiseBandwidthNarrow,4,   % FLL noise BW narrow [Hz] - 修正：从30降至4Hz
+gale5a,fllNoiseBandwidthVeryNarrow,2,   % FLL noise BW very narrow [Hz]
+gale5a,fllDampingRatio,1.5,         % FLL damping ratio
+gale5a,fllLoopGain,0.7,             % FLL loop gain
+gale5a,pllNoiseBandwidthWide,20,        % PLL noise BW [Hz] - 修正：从15增至20Hz
+gale5a,pllNoiseBandwidthNarrow,6,        % PLL noise BW [Hz] - 修正：从10降至6Hz
+gale5a,pllNoiseBandwidthVeryNarrow,3,        % PLL noise BW [Hz]
+gale5a,pllDampingRatio,0.7,          % PLL damping ratio
+gale5a,pllLoopGain,0.2,              % PLL loop gain
+gale5a,dllDampingRatio,0.7,          % DLL damping ratio
+gale5a,dllNoiseBandwidth,1.0,          % DLL noise BW [Hz]
+gale5a,M,20,                         % Number of blocks to use for computing wide band power
+gale5a,K,50,                         % Averaging over M number of blocks
+gale5a,Nc,0.001,                     % integration time in seconds for DLL
+gale5a,corrFingers,[-0.5 0 0.5],    % Correlator finger positions [chips] - 修正：规范化配置（AltBOC允许最大0.33 chips）
+gale5a,earlyFingerIndex,1,               % Index of early finger
+gale5a,promptFingerIndex,2,              % Index of prompt finger
+gale5a,lateFingerIndex,3,                % Index of late finger
+gale5a,noiseFingerIndex,1,               % Index of fingers for measuring noise level
+gale5a,CN0Coeff,1,
+gale5a,pllWideBandLockIndicatorThreshold,0.5,               % PLL lock indicator threshold for DLL unlocked => locked
+gale5a,pllNarrowBandLockIndicatorThreshold,0.8,               % PLL lock indicator threshold for DLL unlocked => locked
+gale5a,runningAvgWindowForLockDetectorInMs, 20
+gale5a,fllWideBandLockIndicatorThreshold,0.5,               % FLL wide band lock indicator threshold for DLL unlocked => locked
+gale5a,fllNarrowBandLockIndicatorThreshold,0.7,               % FLL narrow band lock detector threshold for DLL unlocked => locked
+gale5a,dllLockThresholdOn,6000,          % Lock detector threshold for DLL unlocked => locked
+gale5a,dllLockThresholdOff,3000,         % Lock detector threshold for DLL locked => unlocked
+
+% Signal specific observation parameters
+gale5a,enableIonoCorrections,true,       % Use iono corrections or not
+gale5a,enableTropoCorrections,true,      % Use tropo corrections or not
+gale5a,ionomodel,'default',              % Iono model to use - 修正：从'gale5a'改为'default'（软件可能不支持E5a电离层模型）
+gale5a,ionexFile,''                      % Filename for ionex file if ionomodel is = ionex
