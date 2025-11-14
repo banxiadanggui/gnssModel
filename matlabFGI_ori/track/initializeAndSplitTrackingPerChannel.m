@@ -43,6 +43,7 @@ for signalNr = 1:allSettings.sys.nrOfSignals % Loop over all signals
         trackResultsSingle.(signal).nrObs = 1;        
         trackResultsSingle.signal= signal;
         trackDataFile.(signal).channel(channelNr).name = [trackDataFilePath,'trackData_',signal,'_Satellite_ID_',num2str([trackResults.(signal).channel(channelNr).SvId.satId]),'.mat'];
+        trackDataFile.(signal).channel(channelNr).name = strjoin(trackDataFile.(signal).channel(channelNr).name,"");
         save(trackDataFile.(signal).channel(channelNr).name, 'trackResultsSingle','allSettings','acqData');
     end
 end

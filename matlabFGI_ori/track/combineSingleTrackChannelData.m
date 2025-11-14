@@ -31,20 +31,20 @@ function trackDataCombined = combineSingleTrackChannelData(allSettings)
 trackDataInputFile= allSettings.sys.dataFileIn;
 trackDataFilePath = allSettings.sys.trackDataFilePath;
 
-for signalNr = 1:allSettings.sys.nrOfSignals % Loop over all signals   
-    
+for signalNr = 1:allSettings.sys.nrOfSignals % Loop over all signals
     signal = allSettings.sys.enabledSignals{signalNr};
     load(trackDataInputFile);
-
-    trackDataCombined.(signal) = trackResults.(signal);
-    trackDataCombined.(signal).channel(1).trackingRunTime= 0;
     trackChannelNr = 1;
-  
-    for channelNr = 1:length(acqData.(signal).channel) % Loop over all channels            
+    for channelNr = 1:length(acqData.(signal).channel) % Loop over all channels
         if acqData.(signal).channel(channelNr).bFound == 1
             satId = acqData.(signal).channel(channelNr).SvId.satId;
             trackDataFileName = [trackDataFilePath,'trackData_',signal,'_Satellite_ID_',num2str(satId),'.mat'];
-            load(trackDataFileName);        
+            trackDataFileName = strjoin(trackDataFileName,"");
+            load(trackDataFileName);
+            if trackChannelNr == 1
+                trackDataCombined.(signal) = trackResults.(signal);
+                trackDataCombined.(signal).channel(1).trackingRunTime= 0;
+            end
             trackDataCombined.(signal).channel(trackChannelNr) = trackResults.(signal).channel;
             trackDataCombined.(signal).fid = trackResults.(signal).fid;
             trackDataCombined.(signal).nrObs = trackDataCombined.(signal).nrObs+1;         

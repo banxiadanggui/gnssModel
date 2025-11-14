@@ -8,56 +8,121 @@
 %% by the Free Software Foundation, either version 3 of the License, or any
 %% later version. FGI-GSRx software receiver is distributed in the hope
 %% that it will be useful, but WITHOUT ANY WARRANTY, without even the
-%% implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. 
+%% implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
 %% See the GNU General Public License for more details. You should have
 %% received a copy of the GNU General Public License along with FGI-GSRx
-%% software-defined receiver. If not, please visit the following website 
+%% software-defined receiver. If not, please visit the following website
 %% for further information: https://www.gnu.org/licenses/
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 function trackDataCombined = combineSingleTrackChannelData(allSettings)
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-% This function takes input of acquisition results and performs tracking.
+% This function combines individual satellite tracking results into a
+% unified tracking data structure.
 %
 % Inputs:
 %   allSettings     - Receiver settings
 %
 % Outputs:
-%   trackResults    - Results from signal tracking for all signals
+%   trackDataCombined - Combined tracking results for all signals
 %
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
-trackDataInputFile= allSettings.sys.dataFileIn;
 trackDataFilePath = allSettings.sys.trackDataFilePath;
+% Ensure it's a character vector, not string array
+if iscell(trackDataFilePath)
+    trackDataFilePath = trackDataFilePath{1};
+end
+trackDataFilePath = char(trackDataFilePath);
 
-for signalNr = 1:allSettings.sys.nrOfSignals % Loop over all signals   
-    
+fprintf('Combining tracking results from: %s\n', trackDataFilePath);
+
+% Load acqData from first tracking file
+acqDataLoaded = false;
+
+for signalNr = 1:allSettings.sys.nrOfSignals % Loop over all signals
     signal = allSettings.sys.enabledSignals{signalNr};
-    load(trackDataInputFile);
+    % Ensure signal is a character vector
+    if iscell(signal)
+        signal = signal{1};
+    end
+    signal = char(signal);
 
-    trackDataCombined.(signal) = trackResults.(signal);
-    trackDataCombined.(signal).channel(1).trackingRunTime= 0;
-    trackChannelNr = 1;
-  
-    for channelNr = 1:length(acqData.(signal).channel) % Loop over all channels            
+    fprintf('\nProcessing signal: %s\n', signal);
+
+    % Load acqData if not already loaded
+    if ~acqDataLoaded
+        trackFiles = dir([trackDataFilePath,'trackData_',signal,'_Satellite_ID_*.mat']);
+        if isempty(trackFiles)
+            error('No tracking files found for signal %s in %s', signal, trackDataFilePath);
+        end
+        firstTrackFile = fullfile(trackDataFilePath, trackFiles(1).name);
+        fprintf('Loading acqData from: %s\n', firstTrackFile);
+        load(firstTrackFile, 'acqData');
+        acqDataLoaded = true;
+    end
+
+    % Collect all channel data for this signal
+    channelArray = [];
+    validChannelCount = 0;
+
+    for channelNr = 1:length(acqData.(signal).channel)
         if acqData.(signal).channel(channelNr).bFound == 1
             satId = acqData.(signal).channel(channelNr).SvId.satId;
             trackDataFileName = [trackDataFilePath,'trackData_',signal,'_Satellite_ID_',num2str(satId),'.mat'];
-            load(trackDataFileName);        
-            trackDataCombined.(signal).channel(trackChannelNr) = trackResults.(signal).channel;
-            trackDataCombined.(signal).fid = trackResults.(signal).fid;
-            trackDataCombined.(signal).nrObs = trackDataCombined.(signal).nrObs+1;         
-            trackChannelNr = trackChannelNr + 1; 
+
+            if ~exist(trackDataFileName, 'file')
+                fprintf('  WARNING: File not found: %s\n', trackDataFileName);
+                continue;
+            end
+
+            % Check what variables are in the file
+            fileVars = whos('-file', trackDataFileName);
+            varNames = {fileVars.name};
+
+            % Load the appropriate variable
+            if ismember('trackResults', varNames)
+                tempData = load(trackDataFileName, 'trackResults');
+                singleChannel = tempData.trackResults.(signal).channel;
+                if validChannelCount == 0
+                    % Use first file to initialize metadata
+                    trackDataCombined.(signal) = tempData.trackResults.(signal);
+                end
+            elseif ismember('trackResultsSingle', varNames)
+                fprintf('  WARNING: Loading unprocessed data from: %s\n', trackDataFileName);
+                tempData = load(trackDataFileName, 'trackResultsSingle');
+                singleChannel = tempData.trackResultsSingle.(signal).channel;
+                if validChannelCount == 0
+                    % Use first file to initialize metadata
+                    trackDataCombined.(signal) = tempData.trackResultsSingle.(signal);
+                end
+            else
+                fprintf('  WARNING: No valid tracking data in: %s\n', trackDataFileName);
+                continue;
+            end
+
+            validChannelCount = validChannelCount + 1;
+
+            % Build channel array
+            if validChannelCount == 1
+                channelArray = singleChannel;
+            else
+                channelArray(validChannelCount) = singleChannel;
+            end
+
+            fprintf('  Loaded channel %d (Sat ID: %d)\n', validChannelCount, satId);
         end
-    end % Loop over all epochs         
-    trackDataCombined.(signal).nrObs = trackDataCombined.(signal).nrObs - 1;
+    end
+
+    % Assign the complete channel array
+    if validChannelCount > 0
+        trackDataCombined.(signal).channel = channelArray;
+        trackDataCombined.(signal).nrObs = validChannelCount;
+        fprintf('Successfully combined %d channels for %s\n', validChannelCount, signal);
+    else
+        error('No valid channels found for signal %s', signal);
+    end
 end
 
-
-% trackDataFileName = ['D:\Raw IQ Data\OSNMA data\trackDataSatellite_ID_',num2str(trackResults.(signal).channel.SvId.satId),'.mat'];
-% save(trackDataFileName, 'trackResults', 'allSettings');
-% % Notify user tracking is over
-% disp(['   Tracking is over (elapsed time ', datestr(now - trackStartTime, 13), ')']) 
-
-
+fprintf('\nCombining complete!\n');

@@ -32,20 +32,46 @@ function doTrackingParallel(trackDataFileName, allSettings)
 
 %Create BacthFile
 currentWorkingDirectoryForFGIGSRx = allSettings.sys.currentWorkingDirectoryForFGIGSRx;
-batchFileName=[currentWorkingDirectoryForFGIGSRx, 'main\' allSettings.sys.batchFileNameToRunParallelTracking];
+% Ensure it's a character vector
+if iscell(currentWorkingDirectoryForFGIGSRx)
+    currentWorkingDirectoryForFGIGSRx = currentWorkingDirectoryForFGIGSRx{1};
+end
+currentWorkingDirectoryForFGIGSRx = char(currentWorkingDirectoryForFGIGSRx);
+
+batchFileNamePart = allSettings.sys.batchFileNameToRunParallelTracking;
+if iscell(batchFileNamePart)
+    batchFileNamePart = batchFileNamePart{1};
+end
+batchFileNamePart = char(batchFileNamePart);
+
+% No strjoin needed since all parts are char
+batchFileName=[currentWorkingDirectoryForFGIGSRx, 'main\', batchFileNamePart];
+
 matlabpath=allSettings.sys.matlabpath;
+if iscell(matlabpath)
+    matlabpath = matlabpath{1};
+end
+matlabpath = char(matlabpath);
+
 fid = fopen(batchFileName, 'wt' );
 if (fid == -1)
    error('Failed to open data file for tracking!');
    return;
 end
-for signalNr = 1:allSettings.sys.nrOfSignals % Loop over all signals        
-    signal = allSettings.sys.enabledSignals{signalNr};                 
-    for channelNr = 1:length(trackDataFileName.(signal).channel) % Loop over all channels            
-        trackDataFileNameForEachSignal = trackDataFileName.(signal).channel(channelNr).name;        
-        load(trackDataFileNameForEachSignal);                              
-        runMATLABcommand = ['"',matlabpath,'"',' -nosplash -nodesktop -minimize -r ', '"','addpath(genpath(''',currentWorkingDirectoryForFGIGSRx,''')); load ''',trackDataFileNameForEachSignal,'''; doTrackingSingleChannel(acqData,trackResultsSingle,allSettings);"'];        
-        fprintf(fid,'%s\n', runMATLABcommand);        
-    end          
-end % Loop over all epochs         
+for signalNr = 1:allSettings.sys.nrOfSignals % Loop over all signals
+    signal = allSettings.sys.enabledSignals{signalNr};
+    % Ensure signal is a character vector
+    if iscell(signal)
+        signal = signal{1};
+    end
+    signal = char(signal);
+
+    for channelNr = 1:length(trackDataFileName.(signal).channel) % Loop over all channels
+        trackDataFileNameForEachSignal = trackDataFileName.(signal).channel(channelNr).name;
+        load(trackDataFileNameForEachSignal);
+        % No strjoin needed since all parts are char
+        runMATLABcommand = ['"',matlabpath,'"',' -nosplash -nodesktop -minimize -r ', '"','addpath(genpath(''',currentWorkingDirectoryForFGIGSRx,''')); load ''',trackDataFileNameForEachSignal,'''; doTrackingSingleChannel(acqData,trackResultsSingle,allSettings);"'];
+        fprintf(fid,'%s\n', runMATLABcommand);
+    end
+end % Loop over all epochs
 fclose(fid);

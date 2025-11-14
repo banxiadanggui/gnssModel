@@ -31,18 +31,38 @@ function trackDataFile = initializeAndSplitTrackingPerChannel(acqResults, allSet
 
 
 % Initialise tracking structure
-trackResults = initTracking(acqResults, allSettings);  
+trackResults = initTracking(acqResults, allSettings);
 acqData = acqResults;
 %Split Tracking for each signal with one satellite per trackResults
 trackDataFilePath = allSettings.sys.trackDataFilePath;
+% Ensure trackDataFilePath is a character vector
+if iscell(trackDataFilePath)
+    trackDataFilePath = trackDataFilePath{1};
+end
+trackDataFilePath = char(trackDataFilePath);
+
+% Create directory if it doesn't exist
+if ~exist(trackDataFilePath, 'dir')
+    fprintf('Creating directory: %s\n', trackDataFilePath);
+    mkdir(trackDataFilePath);
+end
+
 for signalNr = 1:allSettings.sys.nrOfSignals % Loop over all signals
-    signal = allSettings.sys.enabledSignals{signalNr};    
-    for channelNr = 1:trackResults.(signal).nrObs % Loop over all channels           
+    signal = allSettings.sys.enabledSignals{signalNr};
+    % Ensure signal is a character vector
+    if iscell(signal)
+        signal = signal{1};
+    end
+    signal = char(signal);
+
+    for channelNr = 1:trackResults.(signal).nrObs % Loop over all channels
         trackResultsSingle.(signal) = trackResults.(signal);
         trackResultsSingle.(signal).channel = trackResults.(signal).channel(channelNr);
-        trackResultsSingle.(signal).nrObs = 1;        
+        trackResultsSingle.(signal).nrObs = 1;
         trackResultsSingle.signal= signal;
+        % No strjoin needed since all parts are char
         trackDataFile.(signal).channel(channelNr).name = [trackDataFilePath,'trackData_',signal,'_Satellite_ID_',num2str([trackResults.(signal).channel(channelNr).SvId.satId]),'.mat'];
+        fprintf('Creating initial file: %s\n', trackDataFile.(signal).channel(channelNr).name);
         save(trackDataFile.(signal).channel(channelNr).name, 'trackResultsSingle','allSettings','acqData');
     end
 end

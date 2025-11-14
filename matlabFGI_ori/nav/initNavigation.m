@@ -50,9 +50,9 @@ for signalNr = 1:allSettings.sys.nrOfSignals
             if(obs.channel(channelNr).sampleCount(ind) > startSampleCount)
                 startSampleCount = obs.channel(channelNr).sampleCount(ind);
             end
-            
-            if(obs.channel(channelNr).sampleCount(end) > maxsamplecount)
-                maxsamplecount = obs.channel(channelNr).sampleCount(end);
+            ends = floor(length(obs.channel(channelNr).sampleCount) / 1000) * 1000;
+            if(obs.channel(channelNr).sampleCount(ends) > maxsamplecount)
+                maxsamplecount = obs.channel(channelNr).sampleCount(ends);
             end
         end
     end

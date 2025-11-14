@@ -33,6 +33,7 @@ function doTrackingParallel(trackDataFileName, allSettings)
 %Create BacthFile
 currentWorkingDirectoryForFGIGSRx = allSettings.sys.currentWorkingDirectoryForFGIGSRx;
 batchFileName=[currentWorkingDirectoryForFGIGSRx, 'main\' allSettings.sys.batchFileNameToRunParallelTracking];
+batchFileName=strjoin(batchFileName,"");
 matlabpath=allSettings.sys.matlabpath;
 fid = fopen(batchFileName, 'wt' );
 if (fid == -1)
@@ -42,9 +43,10 @@ end
 for signalNr = 1:allSettings.sys.nrOfSignals % Loop over all signals        
     signal = allSettings.sys.enabledSignals{signalNr};                 
     for channelNr = 1:length(trackDataFileName.(signal).channel) % Loop over all channels            
-        trackDataFileNameForEachSignal = trackDataFileName.(signal).channel(channelNr).name;        
-        load(trackDataFileNameForEachSignal);                              
-        runMATLABcommand = ['"',matlabpath,'"',' -nosplash -nodesktop -minimize -r ', '"','addpath(genpath(''',currentWorkingDirectoryForFGIGSRx,''')); load ''',trackDataFileNameForEachSignal,'''; doTrackingSingleChannel(acqData,trackResultsSingle,allSettings);"'];        
+        trackDataFileNameForEachSignal = trackDataFileName.(signal).channel(channelNr).name;
+        load(trackDataFileNameForEachSignal);
+        runMATLABcommand = ['"',matlabpath,'"',' -nosplash -nodesktop -minimize -r ', '"','addpath(genpath(''',currentWorkingDirectoryForFGIGSRx,''')); load ''',trackDataFileNameForEachSignal,'''; doTrackingSingleChannel(acqData,trackResultsSingle,allSettings);"'];
+        runMATLABcommand = strjoin(runMATLABcommand,"");
         fprintf(fid,'%s\n', runMATLABcommand);        
     end          
 end % Loop over all epochs         

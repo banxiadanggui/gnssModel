@@ -62,49 +62,94 @@ if settings.sys.plotSpectra == 1
     generateSpectra(settings);
 end
 
-% Define ephData if not available
-if(~exist('ephData', 'var'))
-    ephData = [];
-end
-
 % Execute acquisition if results not already available
 if(~exist('acqData', 'var'))
-    acqData = doAcquisition(settings);         
+    % Check if we can skip acquisition by loading from existing tracking files
+    if settings.sys.parallelChannelTracking
+        trackDataFilePath = settings.sys.trackDataFilePath;
+        % Ensure it's a character vector, not string array
+        if iscell(trackDataFilePath)
+            trackDataFilePath = trackDataFilePath{1};
+        end
+        trackDataFilePath = char(trackDataFilePath);
+
+        existingTrackFiles = dir([trackDataFilePath,'trackData_*.mat']);
+        if ~isempty(existingTrackFiles)
+            fprintf('\n=== Skipping acquisition - loading from existing tracking files ===\n');
+            firstTrackFile = fullfile(trackDataFilePath, existingTrackFiles(1).name);
+            fprintf('Loading acqData from: %s\n', firstTrackFile);
+            load(firstTrackFile, 'acqData');
+            fprintf('acqData loaded successfully.\n');
+        else
+            acqData = doAcquisition(settings);
+        end
+    else
+        acqData = doAcquisition(settings);
+    end
 end
 
 % Plot acquisition results
 if settings.sys.plotAcquisition == 1
    % Loop over all signals
-    for i = 1:settings.sys.nrOfSignals   
-        signal = settings.sys.enabledSignals{i};             
-        plotAcquisition(acqData.(signal),settings, char(signal)); 
-    end         
-end
-
-% Save available results so far to file
-if(settings.sys.saveDataFile == true)
-    save(settings.sys.dataFileOut,'settings','acqData','ephData');
+    for i = 1:settings.sys.nrOfSignals
+        signal = settings.sys.enabledSignals{i};
+        plotAcquisition(acqData.(signal),settings, char(signal));
+    end
 end
 
 % Execute tracking if results not allready available
 if(~exist('trackData', 'var'))
     tic;
     if (settings.sys.parallelChannelTracking)
-        if (~exist('trackResults', 'var'))
-            trackDataFileName = initializeAndSplitTrackingPerChannel(acqData, settings); 
-            doTrackingParallel(trackDataFileName,settings);    
+        % Check if parallel tracking files already exist
+        fprintf('\n=== Checking for existing parallel tracking results ===\n');
+        trackDataFilePath = settings.sys.trackDataFilePath;
+        % Ensure it's a character vector, not string array
+        if iscell(trackDataFilePath)
+            trackDataFilePath = trackDataFilePath{1};
+        end
+        trackDataFilePath = char(trackDataFilePath);
+        fprintf('Track data path: %s\n', trackDataFilePath);
+
+        firstSignal = settings.sys.enabledSignals{1};
+        % Ensure firstSignal is a character vector
+        if iscell(firstSignal)
+            firstSignal = firstSignal{1};
+        end
+        firstSignal = char(firstSignal);
+
+        firstSatId = 0;
+        for channelNr = 1:length(acqData.(firstSignal).channel)
+            if acqData.(firstSignal).channel(channelNr).bFound == 1
+                firstSatId = acqData.(firstSignal).channel(channelNr).SvId.satId;
+                break;
+            end
+        end
+        fprintf('First signal: %s, First satellite ID: %d\n', firstSignal, firstSatId);
+
+        % Construct path to first tracking file (no strjoin needed since all are char)
+        firstTrackFile = [trackDataFilePath,'trackData_',firstSignal,'_Satellite_ID_',num2str(firstSatId),'.mat'];
+        fprintf('Checking for file: %s\n', firstTrackFile);
+
+        if (~exist(firstTrackFile, 'file'))
+            fprintf('File NOT found - executing Step 1 (split and generate batch)\n');
+            % Step 1: Initialize and generate batch file
+            trackDataFileName = initializeAndSplitTrackingPerChannel(acqData, settings);
+            doTrackingParallel(trackDataFileName,settings);
+            fprintf('\n=== Step 1 Complete ===\n');
+            fprintf('Please run the batch file: %s\n', settings.sys.batchFileNameToRunParallelTracking);
+            fprintf('After batch completes, run gsrx again to merge results.\n');
             return;
         else
+            fprintf('File FOUND - executing Step 3 (merge results)\n');
+            % Step 3: Merge parallel tracking results
+            fprintf('\n=== Step 3: Merging parallel tracking results ===\n');
             trackData = combineSingleTrackChannelData(settings);
         end
     else
-        trackData = doTracking(acqData, settings);   
+        trackData = doTracking(acqData, settings);
     end
     trackData.trackingRunTime = toc;
-end
-% Save results so far to file
-if(settings.sys.saveDataFile == true)
-    save(settings.sys.dataFileOut,'settings','acqData','ephData','trackData');
 end
 
 % Plot tracking results
@@ -117,25 +162,14 @@ if(~exist('obsData', 'var'))
     obsData = generateObservations(trackData, settings);
 end
 
-% Save results so far to file
-if(settings.sys.saveDataFile == true)
-    save(settings.sys.dataFileOut,'settings','acqData','ephData','trackData','obsData');
-end
-
-% Execute frame decoding. Needed for time stamps at least 
-[obsData, ephData] = doFrameDecoding(obsData, trackData, settings);
-
-% Save results so far to file
-if(settings.sys.saveDataFile == true)
-    save(settings.sys.dataFileOut,'settings','acqData','ephData','trackData','obsData');
+% Execute frame decoding. Needed for time stamps at least
+if(~exist('ephData', 'var'))
+    [obsData, ephData] = doFrameDecoding(obsData, trackData, settings);
 end
 
 % Execute navigation
-[obsData,satData,navData] = doNavigation(obsData, settings, ephData);
-
-% Save final results to file
-if(settings.sys.saveDataFile == true)
-    save(settings.sys.dataFileOut,'settings','acqData','ephData','trackData','obsData','satData','navData');
+if(~exist('navData', 'var'))
+    [obsData,satData,navData] = doNavigation(obsData, settings, ephData);
 end
 
 % Calculate and output statistics
@@ -145,7 +179,14 @@ trueLong = settings.nav.trueLong;
 trueHeight = settings.nav.trueHeight;
 
 % Calculate statistics
-statResults = calcStatistics(navData,[trueLat trueLong trueHeight],settings.nav.navSolPeriod,settings.const);  
+if(~exist('statResults', 'var'))
+    statResults = calcStatistics(navData,[trueLat trueLong trueHeight],settings.nav.navSolPeriod,settings.const);
+end
+
+% Save results so far to file
+if(settings.sys.saveDataFile == true)
+    save(settings.sys.dataFileOut,'settings','acqData','ephData','trackData','obsData','satData','navData','statResults');
+end
 
 % Output statistics
 statResults.hor

@@ -38,6 +38,11 @@ disp (['   Tracking started at ', datestr(trackStartTimeInstance)]);
 
 % Select acquisition results and parameter block
 signal = trackResults.signal;
+% Ensure signal is a character vector
+if iscell(signal)
+    signal = signal{1};
+end
+signal = char(signal);
 signalSettings = allSettings.(signal);
 saveEnabledSignals = allSettings.sys.enabledSignals;
 saveNrOfSignals = allSettings.sys.nrOfSignals;
@@ -76,17 +81,26 @@ for loopCnt =  1:allSettings.sys.msToProcess % Loop over all epochs
         msLeftToProcess = allSettings.sys.msToProcess-loopCnt;
         disp(['Ms Processed: ',int2str(msProcessed),' Ms Left: ',int2str(msLeftToProcess)]);
         disp(['Time processed: ',int2str(time),' Time left: ',int2str(estimtime-time)]);
-     end    
+        if (allSettings.sys.msToProcess-loopCnt < 1000)
+            break;
+        end
+     end
 end % Loop over all epochs
 trackResults.(signal).channel(channelNr).trackingRunTime = toc(trackStartTime);
 trackDataFilePath = allSettings.sys.trackDataFilePath;
+% Ensure trackDataFilePath is a character vector
+if iscell(trackDataFilePath)
+    trackDataFilePath = trackDataFilePath{1};
+end
+trackDataFilePath = char(trackDataFilePath);
 
+% No strjoin needed since all parts are char
 trackDataFileName = [trackDataFilePath,'trackData_',signal,'_Satellite_ID_',num2str(trackResults.(signal).channel.SvId.satId),'.mat'];
 
 allSettings.sys.enabledSignals=saveEnabledSignals;
 allSettings.sys.nrOfSignals=saveNrOfSignals;
 
-
+fprintf('Saving tracking results to: %s\n', trackDataFileName);
 save(trackDataFileName, 'trackResults', 'allSettings','acqData');
 % Notify user tracking is over
 disp(['   Tracking is over (elapsed time ', datestr(now - trackStartTimeInstance, 13), ')']) 

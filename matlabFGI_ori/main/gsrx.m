@@ -62,11 +62,6 @@ if settings.sys.plotSpectra == 1
     generateSpectra(settings);
 end
 
-% Define ephData if not available
-if(~exist('ephData', 'var'))
-    ephData = [];
-end
-
 % Execute acquisition if results not already available
 if(~exist('acqData', 'var'))
     acqData = doAcquisition(settings);         
@@ -78,12 +73,7 @@ if settings.sys.plotAcquisition == 1
     for i = 1:settings.sys.nrOfSignals   
         signal = settings.sys.enabledSignals{i};             
         plotAcquisition(acqData.(signal),settings, char(signal)); 
-    end         
-end
-
-% Save available results so far to file
-if(settings.sys.saveDataFile == true)
-    save(settings.sys.dataFileOut,'settings','acqData','ephData');
+    end
 end
 
 % Execute tracking if results not allready available
@@ -102,10 +92,6 @@ if(~exist('trackData', 'var'))
     end
     trackData.trackingRunTime = toc;
 end
-% Save results so far to file
-if(settings.sys.saveDataFile == true)
-    save(settings.sys.dataFileOut,'settings','acqData','ephData','trackData');
-end
 
 % Plot tracking results
 if settings.sys.plotTracking == 1                
@@ -117,25 +103,14 @@ if(~exist('obsData', 'var'))
     obsData = generateObservations(trackData, settings);
 end
 
-% Save results so far to file
-if(settings.sys.saveDataFile == true)
-    save(settings.sys.dataFileOut,'settings','acqData','ephData','trackData','obsData');
-end
-
-% Execute frame decoding. Needed for time stamps at least 
-[obsData, ephData] = doFrameDecoding(obsData, trackData, settings);
-
-% Save results so far to file
-if(settings.sys.saveDataFile == true)
-    save(settings.sys.dataFileOut,'settings','acqData','ephData','trackData','obsData');
+% Execute frame decoding. Needed for time stamps at least
+if(~exist('ephData', 'var'))
+    [obsData, ephData] = doFrameDecoding(obsData, trackData, settings);
 end
 
 % Execute navigation
-[obsData,satData,navData] = doNavigation(obsData, settings, ephData);
-
-% Save final results to file
-if(settings.sys.saveDataFile == true)
-    save(settings.sys.dataFileOut,'settings','acqData','ephData','trackData','obsData','satData','navData');
+if(~exist('navData', 'var'))
+    [obsData,satData,navData] = doNavigation(obsData, settings, ephData);
 end
 
 % Calculate and output statistics
@@ -145,7 +120,14 @@ trueLong = settings.nav.trueLong;
 trueHeight = settings.nav.trueHeight;
 
 % Calculate statistics
-statResults = calcStatistics(navData,[trueLat trueLong trueHeight],settings.nav.navSolPeriod,settings.const);  
+if(~exist('stateResults', 'var'))
+    statResults = calcStatistics(navData,[trueLat trueLong trueHeight],settings.nav.navSolPeriod,settings.const);
+end
+
+% Save results so far to file
+if(settings.sys.saveDataFile == true)
+    save(settings.sys.dataFileOut,'settings','acqData','ephData','trackData','obsData','satData','navData','statResults');
+end
 
 % Output statistics
 statResults.hor
