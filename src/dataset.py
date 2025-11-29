@@ -76,8 +76,8 @@ def load_single_dataset(dataset_name, data_root=config.DATA_ROOT):
 
         for npy_file in npy_files:
             try:
-                # 加载数据
-                data = np.load(npy_file)
+                # 加载数据并转换为float32节省内存
+                data = np.load(npy_file).astype(np.float32)
 
                 # 验证数据形状
                 if data.shape != (config.WINDOW_SIZE, config.NUM_FEATURES):
@@ -193,10 +193,10 @@ def normalize_data(X_train, X_val, X_test, method='standard'):
     else:
         raise ValueError(f"未知的归一化方法: {method}")
 
-    # 在训练集上拟合scaler
-    X_train_norm = scaler.fit_transform(X_train_flat)
-    X_val_norm = scaler.transform(X_val_flat)
-    X_test_norm = scaler.transform(X_test_flat)
+    # 在训练集上拟合scaler，并转换为float32节省内存
+    X_train_norm = scaler.fit_transform(X_train_flat).astype(np.float32)
+    X_val_norm = scaler.transform(X_val_flat).astype(np.float32)
+    X_test_norm = scaler.transform(X_test_flat).astype(np.float32)
 
     # Reshape回原始形状
     X_train_norm = X_train_norm.reshape(N_train, T, F)

@@ -36,19 +36,24 @@ ENV/
 
 # Jupyter Notebook
 .ipynb_checkpoints
-*.ipynb
+# 保留示例notebook，只忽略checkpoint
+# *.ipynb
 
 # IDE
 .idea/
 .vscode/
 
-# 训练结果（大文件）
+# 训练结果
+# 保留训练指标和报告，只忽略大模型文件
 results/models/*.pth
-results/models/*.txt
-results/figures/*.png
-results/logs/*.txt
-results/logs/*.json
+results/models/*.pkl
 results/logs/*.npz
+
+# 保留以下文件（分享项目时需要）：
+# - results/figures/*.png (训练曲线、混淆矩阵等可视化)
+# - results/logs/*_classification_report.txt (分类报告)
+# - results/logs/*_results.json (训练指标)
+# - results/models/*.txt (LightGBM文本模型)
 
 # MATLAB
 *.asv
@@ -59,7 +64,26 @@ results/logs/*.npz
 *.log
 ~*
 
+# Conda环境和工具脚本
+*.bat
+!open_terminal.bat
+*.ps1
+!open_terminal.ps1
+environment.yml.backup
+.autoenv
+AUTOENV_SETUP.md
+
+# PowerShell配置（本地）
+profile.ps1
+
+# 工具文件（不需要分享）
+toolsCode/verify_gpu.py
+
 # 系统文件
 .DS_Store
 Thumbs.db
 desktop.ini
+
+# Git
+.git/
+*.orig

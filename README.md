@@ -349,6 +349,10 @@ A: 编辑 `src/config.py` 中的配置字典
 
 ---
 
+& "C:\Users\harin\miniconda3\shell\condabin\conda-hook.ps1"
+conda activate
+conda activate gnss_ml  
+
 **更新日期**: 2025-11-28
 
 详细训练指南请参考: [scripts/TRAINING_GUIDE.md](scripts/TRAINING_GUIDE.md)

@@ -281,7 +281,7 @@ def example_custom_training():
 
     # 学习率调度器
     scheduler = ReduceLROnPlateau(
-        optimizer, mode='min', patience=5, factor=0.5, verbose=True
+        optimizer, mode='min', patience=5, factor=0.5
     )
 
     # 早停

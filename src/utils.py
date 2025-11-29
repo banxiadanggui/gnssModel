@@ -256,7 +256,14 @@ def get_device():
     """获取可用的计算设备"""
     if torch.cuda.is_available():
         device = torch.device('cuda')
-        print(f"使用GPU: {torch.cuda.get_device_name(0)}")
+        gpu_name = torch.cuda.get_device_name(0)
+        gpu_memory = torch.cuda.get_device_properties(0).total_memory / 1024**3
+        print(f"使用GPU: {gpu_name}")
+        print(f"显存大小: {gpu_memory:.1f} GB")
+
+        # 启用cudnn benchmark以优化卷积性能
+        torch.backends.cudnn.benchmark = True
+        print("已启用 cuDNN benchmark 优化")
     else:
         device = torch.device('cpu')
         print("使用CPU")

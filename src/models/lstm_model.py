@@ -196,8 +196,7 @@ def train_lstm(train_loader, val_loader, test_loader,
         optimizer,
         mode='min',
         patience=config.LSTM_TRAIN_CONFIG['scheduler_patience'],
-        factor=config.LSTM_TRAIN_CONFIG['scheduler_factor'],
-        verbose=True
+        factor=config.LSTM_TRAIN_CONFIG['scheduler_factor']
     )
 
     # 早停机制
